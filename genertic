@@ -1,0 +1,359 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include<math.h>
+#define PI 3.141592653589
+#define DNASIZE 33
+#define X_DNASIZE 18//先前计算得
+#define Y_DNASIZE 15
+#define POPSIZE 50
+#define CROSS_RATE  0.4//交叉概率
+#define MUTATION_RATE  0.01//变异概率
+#define GENERATION  500//迭代次数
+double X_BOUND[] = { -3.0, 12.1 };
+double	Y_BOUND[] = { 4.1, 5.8 };
+
+
+//目标函数
+double F(double x, double y) {
+	double b = 21.5 + sin(4 * PI*x)*x + sin(20 * PI*y)*y;
+	return b;
+}
+
+//解码，计算个体适应度
+double fitness(int Population_arry[][DNASIZE], int i) {
+	int j = 0;
+	int k = 0;
+	double x_pop = 0;//解码值
+	double y_pop = 0;
+	for (k = X_DNASIZE - 1, j = 0; j < X_DNASIZE; j++, k--) {
+		x_pop += Population_arry[i][j] * (pow(2, k));
+	}
+	for (k = Y_DNASIZE - 1, j = X_DNASIZE; j < DNASIZE; j++, k--) {
+		y_pop += Population_arry[i][j] * (pow(2, k));
+	}
+	x_pop = x_pop / (pow(2, X_DNASIZE) - 1)*(X_BOUND[1] - X_BOUND[0]) + X_BOUND[0];
+	y_pop = y_pop / (pow(2, Y_DNASIZE) - 1)*(Y_BOUND[1] - Y_BOUND[0]) + Y_BOUND[0];
+	double fit = F(x_pop, y_pop);
+	return fit;
+}
+
+void initial(int Population_arry[][DNASIZE]) {//初始化种群
+	int b;
+	//srand((unsigned)time(NULL));
+	for (int i = 0; i < POPSIZE; i++) {
+		for (int j = 0; j < DNASIZE; j++)
+		{
+			b = rand() % 2;
+			Population_arry[i][j] = b;
+		}
+	}
+}
+
+//交叉
+void cross(int Population_arry[][DNASIZE], double n) {
+	for (int i = 0; i < POPSIZE; i++) {//遍历父亲	
+		double r = rand() / (double)RAND_MAX;
+		if (r < n) {
+			//int k = rand() % POPSIZE;//随机另一个个体作为母亲
+			int k = POPSIZE - i-1;
+			if (i<k) {
+				int l = rand() % DNASIZE;//随机一个点交叉
+				int temp;
+				for (int j = l; j < DNASIZE - 1; j++) {
+					temp = Population_arry[i][j];
+					Population_arry[i][j] = Population_arry[k][j];
+					Population_arry[k][j] = temp;
+				}
+			}
+		}
+	}
+}
+//变异
+void variation(int Population_arry[][DNASIZE], double m) {
+	for (int i = 0; i < POPSIZE; i++) {//
+		//double r = rand() / (RAND_MAX + 1.0);
+		for (int j = 0; j < DNASIZE; j++) {
+			double r = rand() / (double)RAND_MAX;
+			if (r < m) {
+				Population_arry[i][j] = ((Population_arry[i][j]) + 1) % 2;
+			}
+		}
+	}
+}
+
+int main() {
+	//定义初始化种群
+	int Population_arry_fu[POPSIZE][DNASIZE] = { 0 };
+	int Population_arry_zi[POPSIZE][DNASIZE] = { 0 };
+	int Population_arry_sun[POPSIZE][DNASIZE] = { 0 };
+	int Population_arry_fzs[3*POPSIZE][DNASIZE] = { 0 };
+	int Population_arry_x[POPSIZE][DNASIZE] = { 0 };//交叉池
+	//int Population_arry_bianyi[POPSIZE][DNASIZE] = { 0 };//变异池
+	
+	double fitnum_fu[POPSIZE];//存放各个个体适应度值:父
+	double fitnum_fzs[3*POPSIZE];//存放各个个体适应度值
+	double fitnum_fzs1[3 * POPSIZE];//求最大适应度下标用
+	double fitnum_fzs2[3 * POPSIZE];//求最大适应度下标用
+
+	initial(Population_arry_fu);
+	int count = 0;
+	int kk1=-1;
+	int kk2=-2;
+	while (count < GENERATION) {// 满足循环条件
+		//解码,适应度计算
+		for (int i = 0; i < POPSIZE; i++) {
+			fitnum_fu[i] = fitness(Population_arry_fu, i);
+		}
+		printf("\n===========================================\n");
+		printf("fitness all fitness :\n");
+		for (int i = 0; i < POPSIZE; i++) {
+
+			printf("%f\n", fitnum_fu[i]);
+		}
+		//输出临时最大适应度
+		printf("\n===========================================\n");
+		if (kk1 != -1) {
+			printf("recently best fitness is %f\n", fitnum_fu[kk1]);
+			printf("count :  %d\n", 1+count);
+		}
+		//从父代按概率选择N个放入交叉池
+
+		//父代总适应度
+		double sum = 0;
+		double p[POPSIZE];
+		for (int i = 0; i < POPSIZE; i++) {
+			sum = sum + fitnum_fu[i];
+		}
+		for (int i = 0; i < POPSIZE; i++) {
+			p[i] = fitnum_fu[i] / sum;
+		}
+
+		//父代选出来的个体下标
+		int selected[POPSIZE ];
+		int a[POPSIZE];
+		for (int h = 0; h < POPSIZE ;) {
+			int num = 0;
+			double r = rand() / (double)RAND_MAX;
+			for (int j = 0; j < POPSIZE; j++) {//将所有r <= p[j]的p[j]记录
+				if (r <= p[j]) {
+					a[num] = j;
+					num++;
+				}
+			}
+				if (num > 0) {
+					for (int i = 0; i < num - 1; i++) {
+						int z = 0;
+						int y = 0;
+						z = a[i];
+						y = a[i + 1];
+					if (p[z] < p[y])//最小者为选出
+					{
+						int s = a[i];
+						a[i] = a[i + 1];
+						a[i + 1] = s;
+					}
+				}
+			}
+			if (num > 0) {
+				selected[h] = a[num - 1];
+				h++;
+			}
+		}
+
+		//放入交叉池
+		for (int i = 0; i < POPSIZE ; i++) {
+				for (int j = 0; j < DNASIZE; j++) {
+					Population_arry_x[i][j] = Population_arry_fu[i][j];
+				}
+			}
+
+		//交叉
+		cross(Population_arry_x, CROSS_RATE);
+
+		//子代
+		for (int i = 0; i < POPSIZE; i++) {
+			for (int j = 0; j < DNASIZE; j++) {
+				Population_arry_zi[i][j] = Population_arry_x[i][j];
+			}
+		}
+
+		//子代放入孙代再变异
+		for (int i = 0; i < POPSIZE; i++) {
+			for (int j = 0; j < DNASIZE; j++) {
+				Population_arry_sun[i][j] = Population_arry_zi[i][j];
+			}
+		}
+		//变异
+		variation(Population_arry_sun, MUTATION_RATE);
+
+		//三代集合放入Population_arry_fzs
+		for (int i = 0; i < POPSIZE; i++) {
+			for (int j = 0; j < DNASIZE; j++) {
+				Population_arry_fzs[i][j] = Population_arry_fu[i][j];
+			}
+		}
+		for (int i = 0; i < POPSIZE; i++) {
+			for (int j = 0; j < DNASIZE; j++) {
+				Population_arry_fzs[i+POPSIZE][j] = Population_arry_zi[i][j];
+			}
+		}
+		for (int i = 0; i <  POPSIZE; i++) {
+			for (int j = 0; j < DNASIZE; j++) {
+				Population_arry_fzs[i+2*POPSIZE][j] = Population_arry_sun[i][j];
+			}
+		}
+
+		//求总集合适应度
+		for (int i = 0; i < 3*POPSIZE; i++) {
+			fitnum_fzs[i] = fitness(Population_arry_fzs, i);
+		}
+
+		//找出最大的两个
+		for (int i = 0; i < 3*POPSIZE; i++) {
+			fitnum_fzs1[i] = fitnum_fzs[i];
+		}
+		for (int i = 0; i <3* POPSIZE; i++) {
+			fitnum_fzs2[i] = fitnum_fzs[i];
+		}
+
+		int d1 = -1;//最大适应度下标志
+		double max = fitnum_fzs1[0];
+		int max_inx = 0;
+		for (int inx = 0; inx != 3*POPSIZE; ++inx)
+		{
+			if (fitnum_fzs1[inx] > max)
+			{
+				max = fitnum_fzs1[inx];
+				max_inx = inx;
+			}
+			else continue;
+		}
+		d1 = max_inx;
+
+
+		int d2;
+		double max2 = fitnum_fzs2[0];
+		int max_inx2 = 0;
+		for (int inx = 0; inx !=3* POPSIZE; ++inx)
+		{
+			if (inx == d1 || fitnum_fzs2[inx] == fitnum_fzs1[d1]) {
+				continue;
+			}
+			else {
+				if (fitnum_fzs2[inx] > max2)
+				{
+					max2 = fitnum_fzs2[inx];
+					max_inx2 = inx;
+				}
+				else
+					continue;
+			}
+		}
+		d2 = max_inx2;
+
+		//保留两个
+		//kk1存d1，kk2存d2
+		
+		 kk1 = rand() % POPSIZE;
+		while (kk1 == d1) {
+			kk1 = rand() % POPSIZE;
+		}
+		 kk2 = rand() % POPSIZE;
+		while (kk1 == kk2 || kk2 == d2) {
+			kk2 = rand() % POPSIZE;
+		}
+
+		//保留两个存回父代
+		for (int j = 0; j < DNASIZE; j++) {
+			Population_arry_fu[kk1][j] = Population_arry_fzs[d1][j];
+			Population_arry_fu[kk2][j] = Population_arry_fzs[d2][j];//两个最优秀保留
+		}
+
+		
+	
+		//按概率从父子孙选n-2个
+		
+		//父子孙代总适应度
+		double sum_fzs = 0;
+		double p_fzs[3*POPSIZE];
+		for (int i = 0; i < 3*POPSIZE; i++) {
+			sum_fzs = sum_fzs + fitnum_fzs[i];
+		}
+		for (int i = 0; i < 3*POPSIZE; i++) {
+			p_fzs[i] = fitnum_fzs[i] / sum_fzs;
+		}
+		
+		//fzs选出来的个体下标
+		int selected_fzs[POPSIZE-2];
+		int a_fzs[3*POPSIZE];
+		for (int h = 0; h < POPSIZE-2;) {
+			int num = 0;
+			double r = rand() / (double)RAND_MAX;
+			for (int j = 0; j < 3*POPSIZE; j++) {//将所有r <= p[j]的p[j]记录
+				if (r <= p_fzs[j]) {
+					a_fzs[num] = j;
+					num++;
+				}
+			}
+			if (num > 0) {
+				for (int i = 0; i < num - 1; i++) {
+					int z = 0;
+					int y = 0;
+					z = a_fzs[i];
+					y = a_fzs[i + 1];
+					if (p_fzs[z] < p_fzs[y])//最小者为选出
+					{
+						int s = a_fzs[i];
+						a_fzs[i] = a_fzs[i + 1];
+						a_fzs[i + 1] = s;
+					}
+				}
+			}
+			if (num > 0) {
+				selected_fzs[h] = a_fzs[num - 1];
+				h++;
+			}
+		}
+		
+		//将fzs选出的n-2个加入Population_arry_fu
+		//更新种群数组
+		for (int i = 0, b = 0; i < POPSIZE - 2; i++, b++) {
+			if (b != kk1 && b != kk2) {
+				int m = selected_fzs[i];
+				for (int j = 0; j < DNASIZE; j++) {
+					Population_arry_fu[b][j] = Population_arry_fzs[m][j];
+				}
+			}
+			else {
+				b++;
+				if (b != kk1 && b != kk2) {
+					int m = selected_fzs[i];
+					for (int j = 0; j < DNASIZE; j++) {
+						Population_arry_fu[b][j] = Population_arry_fzs[m][j];
+					}
+				}
+				else {
+					b++;
+					int m = selected_fzs[i];
+					for (int j = 0; j < DNASIZE; j++) {
+						Population_arry_fu[b][j] = Population_arry_fzs[m][j];
+					}
+				}
+			}
+		}
+	
+		
+		count++;
+	}
+
+
+	//跳出循环输出最佳适应度和个体编码
+	printf("\n********************************************\n");
+	printf("best fitness is %f\n", fitnum_fu[kk1]);
+	printf("best code is \n");
+	for (int i = 0; i < DNASIZE; i++) {
+		printf("%d", Population_arry_fu[kk1][i]);
+	}
+
+}
