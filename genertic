@@ -349,6 +349,9 @@ int main() {
 
 
 	//跳出循环输出最佳适应度和个体编码
+	for (int i = 0; i < POPSIZE; i++) {
+		fitnum_fu[i] = fitness(Population_arry_fu, i);
+	}
 	printf("\n********************************************\n");
 	printf("best fitness is %f\n", fitnum_fu[kk1]);
 	printf("best code is \n");
